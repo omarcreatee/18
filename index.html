@@ -62,7 +62,6 @@
         #board { 
             width: 100%; 
             max-width: 480px; 
-            margin-bottom: 15px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             position: relative;
         }
@@ -145,7 +144,6 @@
             background-color: rgba(255, 255, 0, 0.4) !important;
             cursor: pointer;
         }
-        /* تلوين آخر حركة (المكان القديم والجديد) */
         .highlight-last-move {
             background-color: rgba(155, 199, 0, 0.6) !important;
         }
@@ -206,7 +204,40 @@
             color: #ff4c4c !important;
         }
 
-        /* نافذة التحذير المنبثقة من التعادل */
+        /* حاوية القطع المأكولة */
+        .captured-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            min-height: 42px;
+            background-color: #262421;
+            width: 100%;
+            max-width: 480px;
+            border-radius: 8px;
+            padding: 5px 10px;
+            box-sizing: border-box;
+            align-items: center;
+            justify-content: flex-start;
+        }
+        .captured-area.top { margin-bottom: 10px; }
+        .captured-area.bottom { margin-top: 10px; margin-bottom: 15px; }
+        .captured-piece {
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .captured-piece:hover {
+            transform: scale(1.1);
+        }
+        .selected-captured {
+            border: 2px solid #81b64c;
+            border-radius: 4px;
+            background-color: rgba(129, 182, 76, 0.3);
+            transform: scale(1.1);
+        }
+
+        /* نافذة التحذير المنبثقة */
         #drawWarningModal {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -245,13 +276,13 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="./manifest.json?v=v1786267966393">
-    <meta name="theme-color" content="#71afc1">
-    <link rel="apple-touch-icon" href="./icon-192.png?v=v1786267966393">
+    <link rel="manifest" href="./manifest.json?v=v1786270603763">
+    <meta name="theme-color" content="#d95993">
+    <link rel="apple-touch-icon" href="./icon-192.png?v=v1786270603763">
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=v1786267966393')
+          navigator.serviceWorker.register('./sw.js?v=v1786270603763')
             .then(reg => console.log('SW Registered'))
             .catch(err => console.log('SW Failed', err));
         });
@@ -322,7 +353,13 @@
             </select>
         </div>
 
+        <!-- القطع المأكولة (الجزء العلوي) -->
+        <div id="capturedTop" class="captured-area top"></div>
+
         <div id="board"></div>
+        
+        <!-- القطع المأكولة (الجزء السفلي) -->
+        <div id="capturedBottom" class="captured-area bottom"></div>
         
         <!-- أزرار اللعب التلقائي -->
         <div class="auto-play-grid" id="autoPlayControls" style="display:none;">
@@ -336,7 +373,6 @@
             <button id="flipBtn">🔃 قلب الطاولة</button>
             <button id="switchColorBtn">🔄 العب بالأسود</button>
             <button id="restartBtn" class="btn-primary">ابدأ جيم جديد</button>
-            <!-- زر التوقف الجديد -->
             <button id="stopAllBtn" class="btn-danger">🛑 إيقاف الكل</button>
         </div>
     </div>
@@ -350,15 +386,18 @@
         var board = null;
         var game = new Chess();
         var $status = $('#status');
-        var redoStack = []; 
+        
+        var stateHistory = [];
+        var currentStateIndex = -1;
+
         var isThinking = false;
         var selectedSquare = null; 
-        var forceStop = false; // متغير الإيقاف الإجباري
+        var selectedCapturedPiece = null;
+        var forceStop = false; 
         
         var autoWhite = false;
         var autoBlack = false;
 
-        // متغيرات التوقيت
         var timerInterval = null;
         var whiteTime = 600;
         var blackTime = 600;
@@ -375,7 +414,6 @@
                 if (line.indexOf('uciok') > -1 || line.indexOf('readyok') > -1) {
                     engineReady = true;
                 } else if (line.indexOf('bestmove') > -1) {
-                    // لو ضغطنا إيقاف الكل، المحرك ميعملش الحركة
                     if (forceStop) {
                         forceStop = false;
                         isThinking = false;
@@ -390,6 +428,7 @@
                             promotion: match[3] || 'q'
                         });
                         board.position(game.fen());
+                        saveCurrentState(match[1], match[2]);
                         startTimer(); 
                         updateStatus();
                         isThinking = false;
@@ -413,9 +452,7 @@
             setupEngine(engine);
             
             setTimeout(function() {
-                if (!engineReady) {
-                    engine = null;
-                }
+                if (!engineReady) engine = null;
             }, 3000);
         } catch (e) {
             engine = null; 
@@ -423,7 +460,7 @@
 
         // ---------- نظام الحماية بكلمة المرور ----------
         $(document).ready(function() {
-            var authKey = 'chess_auth_secure_v9'; 
+            var authKey = 'chess_auth_secure_v12'; 
             if (localStorage.getItem(authKey) === 'true') {
                 $('#loginOverlay').hide();
                 $('#gameContainer').css('display', 'flex');
@@ -455,7 +492,7 @@
             });
         });
 
-        // ---------- إدارة التوقيت (المؤقت) ----------
+        // ---------- إدارة التوقيت ----------
         function formatTime(seconds) {
             if (seconds <= 0) return "00:00";
             var m = Math.floor(seconds / 60);
@@ -544,15 +581,15 @@
             }
 
             if (autoWhite) {
-                $('#autoWhiteBtn').css({'background-color': '#81b64c', 'color': 'white'}).text('🤖 أبيض تلقائي: شغال');
+                $('#autoWhiteBtn').css({'background-color': '#f8f8f8', 'color': '#262421'}).text('🤖 أبيض تلقائي: شغال');
             } else {
                 $('#autoWhiteBtn').css({'background-color': '#363431', 'color': '#c3c2c1'}).text('👤 أبيض تلقائي: إيقاف');
             }
 
             if (autoBlack) {
-                $('#autoBlackBtn').css({'background-color': '#81b64c', 'color': 'white'}).text('🤖 أسود تلقائي: شغال');
+                $('#autoBlackBtn').css({'background-color': '#111111', 'color': '#ffffff', 'border': '1px solid #4c4a47'}).text('🤖 أسود تلقائي: شغال');
             } else {
-                $('#autoBlackBtn').css({'background-color': '#363431', 'color': '#c3c2c1'}).text('👤 أسود تلقائي: إيقاف');
+                $('#autoBlackBtn').css({'background-color': '#363431', 'color': '#c3c2c1', 'border': 'none'}).text('👤 أسود تلقائي: إيقاف');
             }
         }
 
@@ -581,6 +618,17 @@
             }
         }
 
+        function saveCurrentState(fromSq, toSq) {
+            if (currentStateIndex < stateHistory.length - 1) {
+                stateHistory = stateHistory.slice(0, currentStateIndex + 1);
+            }
+            stateHistory.push({
+                fen: game.fen(),
+                lastMove: (toSq) ? {from: fromSq, to: toSq} : null
+            });
+            currentStateIndex++;
+        }
+
         function initChessGame() {
             var config = {
                 draggable: false, 
@@ -590,18 +638,30 @@
             
             board = Chessboard('board', config);
 
-            var savedState = localStorage.getItem('chess_save_state_v9');
+            var savedState = localStorage.getItem('chess_save_state_v12');
             if (savedState) {
                 try {
                     var state = JSON.parse(savedState);
-                    game.load(state.fen);
-                    board.position(state.fen);
-                    board.orientation(state.orientation);
-                    $('#switchColorBtn').text(state.orientation === 'white' ? '🔄 العب بالأسود' : '🔄 العب بالأبيض');
-                    $('#gameMode').val(state.mode);
-                    $('#difficulty').val(state.diff);
+                    stateHistory = state.history || [];
+                    currentStateIndex = state.historyIndex !== undefined ? state.historyIndex : -1;
+                    
+                    if (stateHistory.length > 0 && currentStateIndex >= 0) {
+                        var s = stateHistory[currentStateIndex];
+                        game.load(s.fen);
+                        board.position(s.fen);
+                    } else {
+                        game.reset();
+                        stateHistory = [];
+                        currentStateIndex = -1;
+                        saveCurrentState(null, null);
+                    }
+
+                    board.orientation(state.orientation || 'white');
+                    $('#switchColorBtn').text(board.orientation() === 'white' ? '🔄 العب بالأسود' : '🔄 العب بالأبيض');
+                    $('#gameMode').val(state.mode || 'vsPC');
+                    $('#difficulty').val(state.diff || '6');
                     $('#timeControl').val(state.timeCtrl || "600");
-                    redoStack = state.redo || [];
+                    
                     autoWhite = state.autoW || false;
                     autoBlack = state.autoB || false;
                     
@@ -615,9 +675,17 @@
                     }
                 } catch(e) {
                     console.error("مشكلة في استرجاع الجيم المحفوظ", e);
+                    game.reset();
+                    stateHistory = [];
+                    currentStateIndex = -1;
+                    saveCurrentState(null, null);
                     resetTimer();
                 }
             } else {
+                game.reset();
+                stateHistory = [];
+                currentStateIndex = -1;
+                saveCurrentState(null, null);
                 resetTimer();
             }
             
@@ -629,11 +697,11 @@
 
         function saveGameState() {
             var state = {
-                fen: game.fen(),
+                history: stateHistory,
+                historyIndex: currentStateIndex,
                 mode: $('#gameMode').val(),
                 diff: $('#difficulty').val(),
                 timeCtrl: $('#timeControl').val(),
-                redo: redoStack,
                 orientation: board.orientation(),
                 autoW: autoWhite,
                 autoB: autoBlack,
@@ -642,11 +710,54 @@
                 tStarted: timerStarted,
                 timeOut: timeIsOut
             };
-            localStorage.setItem('chess_save_state_v9', JSON.stringify(state));
+            localStorage.setItem('chess_save_state_v12', JSON.stringify(state));
         }
 
-        // ---------- محرك Minimax (البديل لمنع التهنيج) ---------- //
-        function getPieceValue(piece, x, y) {
+        // ---------- عرض القطع المأكولة بصورة صحيحة وبدون أخطاء برمجية ---------- //
+        function renderCapturedPieces() {
+            var counts = {
+                w: { p: 8, n: 2, b: 2, r: 2, q: 1 },
+                b: { p: 8, n: 2, b: 2, r: 2, q: 1 }
+            };
+            
+            // بديل آمن لـ game.board() يمنع أي تهنيج مع الإصدار القديم
+            var files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+            for (var r = 1; r <= 8; r++) {
+                for (var c = 0; c < 8; c++) {
+                    var sq = files[c] + r;
+                    var piece = game.get(sq);
+                    if (piece && counts[piece.color] && counts[piece.color][piece.type] !== undefined) {
+                        counts[piece.color][piece.type]--;
+                    }
+                }
+            }
+
+            var htmlW = '';
+            var htmlB = '';
+            var pieceOrder = ['q', 'r', 'b', 'n', 'p'];
+            
+            pieceOrder.forEach(function(p) {
+                for(var i=0; i < counts.w[p]; i++) {
+                    var isSelected = (selectedCapturedPiece && selectedCapturedPiece.color === 'w' && selectedCapturedPiece.type === p) ? 'selected-captured' : '';
+                    htmlW += '<img src="https://chessboardjs.com/img/chesspieces/wikipedia/w' + p.toUpperCase() + '.png" class="captured-piece ' + isSelected + '" data-color="w" data-type="' + p + '">';
+                }
+                for(var i=0; i < counts.b[p]; i++) {
+                    var isSelected = (selectedCapturedPiece && selectedCapturedPiece.color === 'b' && selectedCapturedPiece.type === p) ? 'selected-captured' : '';
+                    htmlB += '<img src="https://chessboardjs.com/img/chesspieces/wikipedia/b' + p.toUpperCase() + '.png" class="captured-piece ' + isSelected + '" data-color="b" data-type="' + p + '">';
+                }
+            });
+
+            if (board.orientation() === 'white') {
+                $('#capturedTop').html(htmlW); 
+                $('#capturedBottom').html(htmlB); 
+            } else {
+                $('#capturedTop').html(htmlB);
+                $('#capturedBottom').html(htmlW);
+            }
+        }
+
+        // ---------- محرك Minimax (البديل القوي لمنع أي توقف) ---------- //
+        function getPieceValue(piece, i, j) {
             if (piece === null) return 0;
             var val = 0;
             if (piece.type === 'p') val = 100;
@@ -657,63 +768,50 @@
             else if (piece.type === 'k') val = 20000;
 
             var pawnEvalWhite = [
-                [0,  0,  0,  0,  0,  0,  0,  0],
-                [50, 50, 50, 50, 50, 50, 50, 50],
-                [10, 10, 20, 30, 30, 20, 10, 10],
-                [5,  5, 10, 25, 25, 10,  5,  5],
-                [0,  0,  0, 20, 20,  0,  0,  0],
-                [5, -5,-10,  0,  0,-10, -5,  5],
-                [5, 10, 10,-20,-20, 10, 10,  5],
-                [0,  0,  0,  0,  0,  0,  0,  0]
+                [0,0,0,0,0,0,0,0],[50,50,50,50,50,50,50,50],[10,10,20,30,30,20,10,10],
+                [5,5,10,25,25,10,5,5],[0,0,0,20,20,0,0,0],[5,-5,-10,0,0,-10,-5,5],
+                [5,10,10,-20,-20,10,10,5],[0,0,0,0,0,0,0,0]
             ];
-            
             var knightEval = [
-                [-50,-40,-30,-30,-30,-30,-40,-50],
-                [-40,-20,  0,  0,  0,  0,-20,-40],
-                [-30,  0, 10, 15, 15, 10,  0,-30],
-                [-30,  5, 15, 20, 20, 15,  5,-30],
-                [-30,  0, 15, 20, 20, 15,  0,-30],
-                [-30,  5, 10, 15, 15, 10,  5,-30],
-                [-40,-20,  0,  5,  5,  0,-20,-40],
-                [-50,-40,-30,-30,-30,-30,-40,-50]
+                [-50,-40,-30,-30,-30,-30,-40,-50],[-40,-20,0,0,0,0,-20,-40],[-30,0,10,15,15,10,0,-30],
+                [-30,5,15,20,20,15,5,-30],[-30,0,15,20,20,15,0,-30],[-30,5,10,15,15,10,5,-30],
+                [-40,-20,0,5,5,0,-20,-40],[-50,-40,-30,-30,-30,-30,-40,-50]
             ];
-
             var positionalScore = 0;
-            if (piece.type === 'p') {
-                positionalScore = (piece.color === 'w') ? pawnEvalWhite[x][y] : pawnEvalWhite[7 - x][y];
-            } else if (piece.type === 'n') {
-                positionalScore = knightEval[x][y];
-            }
-
+            if (piece.type === 'p') positionalScore = (piece.color === 'w') ? pawnEvalWhite[i][j] : pawnEvalWhite[7 - i][j];
+            else if (piece.type === 'n') positionalScore = knightEval[i][j];
             val += positionalScore;
             return piece.color === 'w' ? val : -val;
         }
 
-        function evaluateBoard(gameBoard) {
+        function evaluateBoard(tempGame) {
             var totalEvaluation = 0;
+            var files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
             for (var i = 0; i < 8; i++) {
                 for (var j = 0; j < 8; j++) {
-                    totalEvaluation += getPieceValue(gameBoard[i][j], i, j);
+                    var rank = 8 - i; 
+                    var sq = files[j] + rank;
+                    var piece = tempGame.get(sq);
+                    if(piece) {
+                        totalEvaluation += getPieceValue(piece, i, j);
+                    }
                 }
             }
             return totalEvaluation;
         }
 
         function minimax(depth, tempGame, alpha, beta, isMaximisingPlayer) {
-            if (depth === 0) return evaluateBoard(tempGame.board());
-            
+            if (depth === 0) return evaluateBoard(tempGame);
             var newGameMoves = tempGame.moves({ verbose: true });
             if (newGameMoves.length === 0) {
                 if (tempGame.in_checkmate()) return isMaximisingPlayer ? -999999 : 999999;
                 return 0; 
             }
-
             newGameMoves.sort(function(a, b) {
                 var aScore = (a.flags.indexOf('c') !== -1 || a.flags.indexOf('e') !== -1) ? 10 : 0;
                 var bScore = (b.flags.indexOf('c') !== -1 || b.flags.indexOf('e') !== -1) ? 10 : 0;
                 return bScore - aScore;
             });
-
             if (isMaximisingPlayer) {
                 var bestMove = -999999;
                 for (var i = 0; i < newGameMoves.length; i++) {
@@ -740,22 +838,18 @@
         function minimaxRoot(depth, tempGame, isMaximisingPlayer) {
             var newGameMoves = tempGame.moves({ verbose: true });
             if (newGameMoves.length === 0) return null;
-            
             newGameMoves.sort(function(a, b) {
                 var aScore = (a.flags.indexOf('c') !== -1 || a.flags.indexOf('e') !== -1) ? 10 : 0;
                 var bScore = (b.flags.indexOf('c') !== -1 || b.flags.indexOf('e') !== -1) ? 10 : 0;
                 return bScore - aScore;
             });
-
             var bestMove = isMaximisingPlayer ? -999999 : 999999;
             var bestMoveFound = newGameMoves[0];
-
             for (var i = 0; i < newGameMoves.length; i++) {
                 var newGameMove = newGameMoves[i];
                 tempGame.move(newGameMove);
                 var value = minimax(depth - 1, tempGame, -1000000, 1000000, !isMaximisingPlayer);
                 tempGame.undo();
-                
                 if (isMaximisingPlayer) {
                     if (value > bestMove) { bestMove = value; bestMoveFound = newGameMove; }
                 } else {
@@ -765,13 +859,7 @@
             return bestMoveFound;
         }
 
-        // ---------- إدارة حركات الذكاء الاصطناعي ----------
         function makeAIMove() {
-            if (game.game_over() || timeIsOut || forceStop) {
-                isThinking = false;
-                return;
-            }
-            
             var mode = $('#gameMode').val();
             var turn = game.turn();
             var pColor = board.orientation() === 'white' ? 'w' : 'b';
@@ -813,9 +901,13 @@
                     
                     if (bestMove) {
                         game.move(bestMove); 
+                        saveCurrentState(bestMove.from, bestMove.to);
                     } else {
-                        var fallbackMoves = game.moves();
-                        if(fallbackMoves.length > 0) game.move(fallbackMoves[0]);
+                        var fallbackMoves = game.moves({verbose: true});
+                        if(fallbackMoves.length > 0) {
+                            game.move(fallbackMoves[0]);
+                            saveCurrentState(fallbackMoves[0].from, fallbackMoves[0].to);
+                        }
                     }
                     board.position(game.fen());
                     startTimer();
@@ -826,7 +918,7 @@
             }
         }
 
-        // ---------- عرض الحركات الشرعية ----------
+        // ---------- عرض الحركات الشرعية للرقعة ----------
         function removeHighlights() {
             $('#board .square-55d63').find('.legal-move-indicator').remove();
             $('#board .square-55d63').removeClass('highlight-square');
@@ -858,9 +950,35 @@
             return false;
         }
 
+        function changeTurnInFen() {
+            var fenParts = game.fen().split(' ');
+            fenParts[1] = (fenParts[1] === 'w') ? 'b' : 'w';
+            fenParts[3] = '-'; 
+            fenParts[4] = '0'; 
+            if (fenParts[1] === 'w') fenParts[5] = parseInt(fenParts[5]) + 1;
+            game.load(fenParts.join(' '));
+        }
+
+        // ---------- تحديد القطع المأكولة للنزول بها ----------
+        $(document).on('click', '.captured-piece', function() {
+            if(game.game_over() || isThinking || forceStop || timeIsOut) return;
+            var color = $(this).attr('data-color');
+            var type = $(this).attr('data-type');
+            
+            if (selectedCapturedPiece && selectedCapturedPiece.color === color && selectedCapturedPiece.type === type) {
+                selectedCapturedPiece = null; 
+            } else {
+                selectedCapturedPiece = { color: color, type: type };
+                selectedSquare = null;
+                removeHighlights();
+            }
+            renderCapturedPieces(); 
+        });
+
         // ---------- نظام الحركة بالضغطة ----------
         $('#board').on('click', '.square-55d63', function() {
-            if (game.game_over() || isThinking || board === null || timeIsOut || forceStop) return;
+            if (game.game_over() || isThinking || board === null || timeIsOut) return;
+            forceStop = false; 
 
             var square = $(this).attr('data-square');
             var piece = game.get(square);
@@ -871,6 +989,37 @@
             if (mode === 'stockfish') {
                 if (game.turn() === 'w' && autoWhite) return;
                 if (game.turn() === 'b' && autoBlack) return;
+            }
+
+            if (selectedCapturedPiece) {
+                if (piece) {
+                    if (piece.color === game.turn()) {
+                        selectedCapturedPiece = null;
+                        renderCapturedPieces();
+                        selectedSquare = square;
+                        highlightLegalMoves(square);
+                    } else {
+                        selectedCapturedPiece = null;
+                        renderCapturedPieces();
+                    }
+                    return;
+                }
+
+                if (selectedCapturedPiece.type === 'p' && (square[1] === '1' || square[1] === '8')) {
+                    selectedCapturedPiece = null;
+                    renderCapturedPieces();
+                    return;
+                }
+
+                game.put({ type: selectedCapturedPiece.type, color: selectedCapturedPiece.color }, square);
+                changeTurnInFen();
+                startTimer(); 
+                board.position(game.fen());
+                saveCurrentState(null, square); 
+                selectedCapturedPiece = null;
+                updateStatus();
+                checkAutoPlay();
+                return;
             }
 
             if (selectedSquare) {
@@ -904,7 +1053,7 @@
                     board.position(game.fen());
                     removeHighlights();
                     selectedSquare = null;
-                    redoStack = [];
+                    saveCurrentState(move.from, move.to);
                     updateStatus();
                     checkAutoPlay(); 
                 } else {
@@ -920,14 +1069,12 @@
             }
         });
 
-        // ---------- تحديث حالة الجيم وتلوين مكان آخر حركة ----------
         function updateStatus() {
             var statusHTML = '';
             var moveColor = game.turn() === 'b' ? 'الأسود' : 'الأبيض';
 
             if (timeIsOut) {
                 var loserColor = (whiteTime <= 0) ? 'الأبيض' : 'الأسود';
-                var winnerColor = (whiteTime <= 0) ? 'الأسود' : 'الأبيض';
                 statusHTML = 'انتهى الوقت! ' + loserColor + ' خسر الجيم ⏳';
                 clearInterval(timerInterval);
             } else if (game.in_checkmate()) {
@@ -942,74 +1089,93 @@
             }
             $status.html(statusHTML);
             
-            // تلوين مكان آخر حركة
             $('.square-55d63').removeClass('highlight-last-move');
-            var history = game.history({verbose: true});
-            if (history.length > 0) {
-                var last = history[history.length - 1];
-                $('#board .square-' + last.from).addClass('highlight-last-move');
-                $('#board .square-' + last.to).addClass('highlight-last-move');
+            if (currentStateIndex >= 0 && stateHistory[currentStateIndex] && stateHistory[currentStateIndex].lastMove) {
+                var last = stateHistory[currentStateIndex].lastMove;
+                if (last.from) $('#board .square-' + last.from).addClass('highlight-last-move');
+                if (last.to) $('#board .square-' + last.to).addClass('highlight-last-move');
             }
 
+            renderCapturedPieces();
             updateTimerUI();
             saveGameState(); 
         }
 
         // ---------- زراير التحكم واللعب التلقائي ----------
         $('#autoWhiteBtn').on('click', function() {
-            if (isThinking || timeIsOut || forceStop) return;
+            if (timeIsOut) return;
+            forceStop = false; 
             autoWhite = !autoWhite;
             updateAutoButtonsUI();
-            checkAutoPlay();
+            if (!isThinking) checkAutoPlay();
         });
 
         $('#autoBlackBtn').on('click', function() {
-            if (isThinking || timeIsOut || forceStop) return;
+            if (timeIsOut) return;
+            forceStop = false; 
             autoBlack = !autoBlack;
             updateAutoButtonsUI();
-            checkAutoPlay();
+            if (!isThinking) checkAutoPlay();
         });
 
         $('#undoBtn').on('click', function() {
-            if (isThinking || forceStop) return;
+            forceStop = false; 
+            if (isThinking) return;
             selectedSquare = null;
+            selectedCapturedPiece = null;
             removeHighlights();
+            renderCapturedPieces();
+            
             var mode = $('#gameMode').val();
+            var undid = false;
+            
             if (mode === 'vsPC' || mode === 'stockfish') {
-                var move1 = game.undo(); 
-                var move2 = game.undo(); 
-                if (move1 && move2) {
-                    redoStack.push(move1); 
-                    redoStack.push(move2);
-                } else if (move1) { 
-                    game.move(move1); 
+                if (currentStateIndex > 1) { 
+                    currentStateIndex -= 2;
+                    undid = true;
                 }
             } else {
-                var move = game.undo();
-                if (move) redoStack.push(move);
+                if (currentStateIndex > 0) {
+                    currentStateIndex--;
+                    undid = true;
+                }
             }
-            board.position(game.fen());
-            updateStatus();
-            checkAutoPlay();
+
+            if (undid) {
+                var s = stateHistory[currentStateIndex];
+                game.load(s.fen);
+                board.position(s.fen);
+                updateStatus();
+                checkAutoPlay();
+            }
         });
 
         $('#redoBtn').on('click', function() {
-            if (isThinking || forceStop) return;
+            forceStop = false;
+            if (isThinking) return;
             selectedSquare = null;
+            selectedCapturedPiece = null;
             removeHighlights();
+            renderCapturedPieces();
+
             var mode = $('#gameMode').val();
-            if ((mode === 'vsPC' || mode === 'stockfish') && redoStack.length >= 2) {
-                var m1 = redoStack.pop(); 
-                var m2 = redoStack.pop();
-                game.move(m1); 
-                game.move(m2); 
-            } else if (redoStack.length > 0) {
-                var move = redoStack.pop(); 
-                game.move(move);
+            var redid = false;
+            
+            if ((mode === 'vsPC' || mode === 'stockfish') && currentStateIndex < stateHistory.length - 2) {
+                currentStateIndex += 2;
+                redid = true;
+            } else if (currentStateIndex < stateHistory.length - 1) {
+                currentStateIndex++;
+                redid = true;
             }
-            board.position(game.fen());
-            updateStatus();
-            checkAutoPlay();
+
+            if (redid) {
+                var s = stateHistory[currentStateIndex];
+                game.load(s.fen);
+                board.position(s.fen);
+                updateStatus();
+                checkAutoPlay();
+            }
         });
 
         $('#flipBtn').on('click', function() {
@@ -1017,14 +1183,19 @@
             board.flip();
             selectedSquare = null;
             removeHighlights();
+            updateStatus(); 
             saveGameState();
         });
 
         $('#switchColorBtn').on('click', function() {
-            if (isThinking || board === null || forceStop) return;
+            if (isThinking || board === null) return;
+            forceStop = false;
             game.reset();
-            redoStack = [];
+            stateHistory = [];
+            currentStateIndex = -1;
+            saveCurrentState(null, null);
             selectedSquare = null;
+            selectedCapturedPiece = null;
             resetTimer();
             removeHighlights();
             if (board.orientation() === 'white') {
@@ -1042,8 +1213,11 @@
         $('#restartBtn').on('click', function() {
             if (isThinking || board === null) return;
             game.reset();
-            redoStack = [];
+            stateHistory = [];
+            currentStateIndex = -1;
+            saveCurrentState(null, null);
             selectedSquare = null;
+            selectedCapturedPiece = null;
             forceStop = false;
             resetTimer();
             board.start();
@@ -1057,6 +1231,7 @@
         $('#gameMode, #difficulty').on('change', function() {
             if (isThinking) return;
             selectedSquare = null;
+            selectedCapturedPiece = null;
             forceStop = false;
             removeHighlights();
             updateAutoButtonsUI();
@@ -1064,29 +1239,28 @@
             checkAutoPlay();
         });
 
-        // تغيير التوقيت يعمل ريستارت تلقائي
         $('#timeControl').on('change', function() {
             $('#restartBtn').click();
         });
 
-        // زرار الإيقاف الكلي 🛑
         $('#stopAllBtn').on('click', function() {
-            forceStop = true; // منع الأوامر المتأخرة من التنفيذ
-            if (engine) engine.postMessage('stop'); // إيقاف المحرك فوراً
-            clearTimeout(window.aiTimeout); // إلغاء أي مهلة تفكير شغالة
+            forceStop = true; 
+            if (engine) engine.postMessage('stop'); 
+            clearTimeout(window.aiTimeout); 
             
             isThinking = false;
             autoWhite = false;
             autoBlack = false;
             updateAutoButtonsUI();
             
-            clearInterval(timerInterval); // إيقاف التوقيت
+            clearInterval(timerInterval); 
             timerStarted = false;
             
             selectedSquare = null;
+            selectedCapturedPiece = null;
             removeHighlights();
+            renderCapturedPieces();
 
-            // مسح كلمة (بيفكر...) ووضع رسالة التوقف
             var currentHtml = $('#status').html();
             var cleanHtml = currentHtml.replace(/<span.*?\(.*?\).*?<\/span>/g, '');
             $('#status').html(cleanHtml + ' <span style="color:#ff4c4c; font-size:0.8em;">[تم الإيقاف]</span>');
