@@ -271,18 +271,45 @@
             width: 100%;
         }
         .warning-btn:hover { background-color: #d35400; }
+
+        /* نافذة الترقية الحرة */
+        #promotionModal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.8);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 10001;
+        }
+        .promotion-box {
+            background-color: #262421;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 90%;
+            max-width: 320px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            border: 2px solid #81b64c;
+        }
+        .promotion-box h3 { color: #fff; margin-top: 0; margin-bottom: 15px; }
+        .promotion-piece {
+            width: 60px; height: 60px; cursor: pointer; transition: transform 0.2s; margin: 5px;
+            background-color: #363431; border-radius: 8px; padding: 5px;
+        }
+        .promotion-piece:hover { transform: scale(1.1); background-color: #81b64c; }
     </style>
 
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="./manifest.json?v=v1786270603763">
-    <meta name="theme-color" content="#d95993">
-    <link rel="apple-touch-icon" href="./icon-192.png?v=v1786270603763">
+    <link rel="manifest" href="./manifest.json?v=v1786271956328">
+    <meta name="theme-color" content="#2f686c">
+    <link rel="apple-touch-icon" href="./icon-192.png?v=v1786271956328">
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=v1786270603763')
+          navigator.serviceWorker.register('./sw.js?v=v1786271956328')
             .then(reg => console.log('SW Registered'))
             .catch(err => console.log('SW Failed', err));
         });
@@ -301,12 +328,22 @@
         </div>
     </div>
 
-    <!-- نافذة تحذير التعادل المنبثقة -->
+    <!-- نافذة تحذير التعادل -->
     <div id="drawWarningModal">
         <div class="warning-box">
             <h3>⚠️ تحذير تعادل وشيك!</h3>
             <p id="drawWarningText">الحركة دي هتوصل الجيم لتعادل (ستيماليت أو تكرار)! متأكد إنك عايز تلعبها؟</p>
             <button class="warning-btn" id="closeWarningBtn">حسناً، فهمت</button>
+        </div>
+    </div>
+
+    <!-- نافذة الترقية الحرة -->
+    <div id="promotionModal">
+        <div class="promotion-box">
+            <h3>اختر القطعة للترقية</h3>
+            <div id="promotionPieces" style="display: flex; justify-content: space-around; flex-wrap: wrap;">
+                <!-- سيتم إضافة الصور برمجياً حسب لون اللاعب -->
+            </div>
         </div>
     </div>
 
@@ -394,6 +431,7 @@
         var selectedSquare = null; 
         var selectedCapturedPiece = null;
         var forceStop = false; 
+        var pendingPromotion = null; // متغير لحفظ الحركة المنتظرة للترقية
         
         var autoWhite = false;
         var autoBlack = false;
@@ -460,7 +498,7 @@
 
         // ---------- نظام الحماية بكلمة المرور ----------
         $(document).ready(function() {
-            var authKey = 'chess_auth_secure_v12'; 
+            var authKey = 'chess_auth_secure_v11'; 
             if (localStorage.getItem(authKey) === 'true') {
                 $('#loginOverlay').hide();
                 $('#gameContainer').css('display', 'flex');
@@ -594,7 +632,7 @@
         }
 
         function checkAutoPlay() {
-            if (game.game_over() || isThinking || timeIsOut || forceStop) return;
+            if (game.game_over() || isThinking || timeIsOut || forceStop || pendingPromotion) return;
             var mode = $('#gameMode').val();
             var turn = game.turn();
             var pColor = board.orientation() === 'white' ? 'w' : 'b';
@@ -638,7 +676,7 @@
             
             board = Chessboard('board', config);
 
-            var savedState = localStorage.getItem('chess_save_state_v12');
+            var savedState = localStorage.getItem('chess_save_state_v11');
             if (savedState) {
                 try {
                     var state = JSON.parse(savedState);
@@ -674,7 +712,6 @@
                         timerInterval = setInterval(tickTimer, 1000);
                     }
                 } catch(e) {
-                    console.error("مشكلة في استرجاع الجيم المحفوظ", e);
                     game.reset();
                     stateHistory = [];
                     currentStateIndex = -1;
@@ -710,17 +747,15 @@
                 tStarted: timerStarted,
                 timeOut: timeIsOut
             };
-            localStorage.setItem('chess_save_state_v12', JSON.stringify(state));
+            localStorage.setItem('chess_save_state_v11', JSON.stringify(state));
         }
 
-        // ---------- عرض القطع المأكولة بصورة صحيحة وبدون أخطاء برمجية ---------- //
+        // ---------- عرض القطع المأكولة ---------- //
         function renderCapturedPieces() {
             var counts = {
                 w: { p: 8, n: 2, b: 2, r: 2, q: 1 },
                 b: { p: 8, n: 2, b: 2, r: 2, q: 1 }
             };
-            
-            // بديل آمن لـ game.board() يمنع أي تهنيج مع الإصدار القديم
             var files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
             for (var r = 1; r <= 8; r++) {
                 for (var c = 0; c < 8; c++) {
@@ -756,8 +791,8 @@
             }
         }
 
-        // ---------- محرك Minimax (البديل القوي لمنع أي توقف) ---------- //
-        function getPieceValue(piece, i, j) {
+        // ---------- محرك Minimax (البديل لمنع التهنيج) ---------- //
+        function getPieceValue(piece, x, y) {
             if (piece === null) return 0;
             var val = 0;
             if (piece.type === 'p') val = 100;
@@ -778,8 +813,8 @@
                 [-40,-20,0,5,5,0,-20,-40],[-50,-40,-30,-30,-30,-30,-40,-50]
             ];
             var positionalScore = 0;
-            if (piece.type === 'p') positionalScore = (piece.color === 'w') ? pawnEvalWhite[i][j] : pawnEvalWhite[7 - i][j];
-            else if (piece.type === 'n') positionalScore = knightEval[i][j];
+            if (piece.type === 'p') positionalScore = (piece.color === 'w') ? pawnEvalWhite[x][y] : pawnEvalWhite[7 - x][y];
+            else if (piece.type === 'n') positionalScore = knightEval[x][y];
             val += positionalScore;
             return piece.color === 'w' ? val : -val;
         }
@@ -859,6 +894,7 @@
             return bestMoveFound;
         }
 
+        // ---------- إدارة حركات الذكاء الاصطناعي ----------
         function makeAIMove() {
             var mode = $('#gameMode').val();
             var turn = game.turn();
@@ -875,7 +911,6 @@
             if (engine && engineReady) {
                 var skillLevel = 0;
                 var moveCommand = 'go depth 1';
-                
                 if (level === 1) { skillLevel = 0; moveCommand = 'go depth 1'; }
                 if (level === 2) { skillLevel = 5; moveCommand = 'go depth 3'; }
                 if (level === 3) { skillLevel = 10; moveCommand = 'go depth 5'; }
@@ -961,7 +996,7 @@
 
         // ---------- تحديد القطع المأكولة للنزول بها ----------
         $(document).on('click', '.captured-piece', function() {
-            if(game.game_over() || isThinking || forceStop || timeIsOut) return;
+            if(game.game_over() || isThinking || forceStop || timeIsOut || pendingPromotion) return;
             var color = $(this).attr('data-color');
             var type = $(this).attr('data-type');
             
@@ -975,9 +1010,38 @@
             renderCapturedPieces(); 
         });
 
-        // ---------- نظام الحركة بالضغطة ----------
+        // ---------- تنفيذ نافذة الترقية ----------
+        $(document).on('click', '.promotion-piece', function() {
+            var promoPiece = $(this).attr('data-piece');
+            $('#promotionModal').fadeOut(150);
+            
+            if (pendingPromotion) {
+                var move = game.move({
+                    from: pendingPromotion.from,
+                    to: pendingPromotion.to,
+                    promotion: promoPiece
+                });
+
+                if (move) {
+                    startTimer(); 
+                    board.position(game.fen());
+                    removeHighlights();
+                    selectedSquare = null;
+                    redoStack = [];
+                    saveCurrentState(move.from, move.to);
+                    updateStatus();
+                    checkAutoPlay(); 
+                } else {
+                    selectedSquare = null;
+                    removeHighlights();
+                }
+                pendingPromotion = null;
+            }
+        });
+
+        // ---------- نظام الحركة بالضغطة (على الرقعة) ----------
         $('#board').on('click', '.square-55d63', function() {
-            if (game.game_over() || isThinking || board === null || timeIsOut) return;
+            if (game.game_over() || isThinking || board === null || timeIsOut || pendingPromotion) return;
             forceStop = false; 
 
             var square = $(this).attr('data-square');
@@ -1036,6 +1100,29 @@
                     return;
                 }
 
+                // فحص إذا كانت الحركة تتطلب ترقية
+                var isPromotionMove = false;
+                var legalMoves = game.moves({ verbose: true });
+                for (var i = 0; i < legalMoves.length; i++) {
+                    if (legalMoves[i].from === selectedSquare && legalMoves[i].to === square && legalMoves[i].promotion) {
+                        isPromotionMove = true;
+                        break;
+                    }
+                }
+
+                if (isPromotionMove) {
+                    pendingPromotion = { from: selectedSquare, to: square };
+                    var promoColor = game.turn();
+                    var piecesHtml = '';
+                    var prompPieces = ['q', 'r', 'b', 'n'];
+                    prompPieces.forEach(function(p) {
+                        piecesHtml += '<img src="https://chessboardjs.com/img/chesspieces/wikipedia/' + promoColor + p.toUpperCase() + '.png" class="promotion-piece" data-piece="' + p + '">';
+                    });
+                    $('#promotionPieces').html(piecesHtml);
+                    $('#promotionModal').css('display', 'flex');
+                    return; 
+                }
+
                 var drawMsg = checkMoveForDrawWarning(selectedSquare, square);
                 if (drawMsg) {
                     $('#drawWarningText').text(drawMsg + " هل أنت متأكد من تنفيذها؟");
@@ -1069,6 +1156,7 @@
             }
         });
 
+        // ---------- تحديث حالة الجيم وتلوين القطع ----------
         function updateStatus() {
             var statusHTML = '';
             var moveColor = game.turn() === 'b' ? 'الأسود' : 'الأبيض';
@@ -1123,6 +1211,8 @@
             if (isThinking) return;
             selectedSquare = null;
             selectedCapturedPiece = null;
+            pendingPromotion = null;
+            $('#promotionModal').hide();
             removeHighlights();
             renderCapturedPieces();
             
@@ -1155,6 +1245,8 @@
             if (isThinking) return;
             selectedSquare = null;
             selectedCapturedPiece = null;
+            pendingPromotion = null;
+            $('#promotionModal').hide();
             removeHighlights();
             renderCapturedPieces();
 
@@ -1188,7 +1280,7 @@
         });
 
         $('#switchColorBtn').on('click', function() {
-            if (isThinking || board === null) return;
+            if (isThinking || board === null || forceStop) return;
             forceStop = false;
             game.reset();
             stateHistory = [];
@@ -1196,6 +1288,8 @@
             saveCurrentState(null, null);
             selectedSquare = null;
             selectedCapturedPiece = null;
+            pendingPromotion = null;
+            $('#promotionModal').hide();
             resetTimer();
             removeHighlights();
             if (board.orientation() === 'white') {
@@ -1218,6 +1312,8 @@
             saveCurrentState(null, null);
             selectedSquare = null;
             selectedCapturedPiece = null;
+            pendingPromotion = null;
+            $('#promotionModal').hide();
             forceStop = false;
             resetTimer();
             board.start();
@@ -1232,6 +1328,8 @@
             if (isThinking) return;
             selectedSquare = null;
             selectedCapturedPiece = null;
+            pendingPromotion = null;
+            $('#promotionModal').hide();
             forceStop = false;
             removeHighlights();
             updateAutoButtonsUI();
@@ -1258,6 +1356,8 @@
             
             selectedSquare = null;
             selectedCapturedPiece = null;
+            pendingPromotion = null;
+            $('#promotionModal').hide();
             removeHighlights();
             renderCapturedPieces();
 
