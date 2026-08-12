@@ -13,6 +13,7 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
             margin: 0;
             padding: 0;
+            transition: background-color 0.3s, color 0.3s;
         }
 
         /* حاوية الدخول وكلمة المرور */
@@ -24,6 +25,7 @@
             justify-content: center;
             align-items: center;
             z-index: 9999;
+            transition: background-color 0.3s;
         }
         .login-box {
             background-color: #262421;
@@ -33,6 +35,7 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             width: 90%;
             max-width: 350px;
+            transition: background-color 0.3s, box-shadow 0.3s;
         }
         .login-box input {
             width: 100%;
@@ -46,6 +49,7 @@
             outline: none;
             font-size: 16px;
             text-align: center;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
         }
 
         /* حاوية اللعبة الأساسية */
@@ -59,30 +63,35 @@
             box-sizing: border-box;
         }
 
+        .container-w {
+            width: 100%;
+            max-width: 480px;
+            box-sizing: border-box;
+            transition: max-width 0.3s ease;
+        }
+
         #board { 
             width: 100%; 
             max-width: 480px; 
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
             position: relative;
+            transition: max-width 0.3s ease;
         }
+        
         .info-container { 
             text-align: center; 
             margin-bottom: 15px; 
             background-color: #262421;
             padding: 15px 20px;
             border-radius: 8px;
-            width: 100%;
-            max-width: 480px;
-            box-sizing: border-box;
+            transition: background-color 0.3s, max-width 0.3s;
         }
-        h2 { margin: 0 0 10px 0; color: #fff; font-size: 22px; }
+        h2 { margin: 0 0 10px 0; color: #fff; font-size: 22px; transition: color 0.3s; }
         
         .settings-grid, .buttons-grid, .auto-play-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 10px;
-            width: 100%;
-            max-width: 480px;
             margin-bottom: 15px;
         }
 
@@ -102,6 +111,7 @@
             font-family: inherit;
             outline: none;
             cursor: pointer;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
         }
 
         button { 
@@ -176,8 +186,6 @@
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 15px;
-            width: 100%;
-            max-width: 480px;
             margin-bottom: 15px;
         }
         .timer-box {
@@ -211,13 +219,11 @@
             gap: 4px;
             min-height: 42px;
             background-color: #262421;
-            width: 100%;
-            max-width: 480px;
             border-radius: 8px;
             padding: 5px 10px;
-            box-sizing: border-box;
             align-items: center;
             justify-content: flex-start;
+            transition: background-color 0.3s;
         }
         .captured-area.top { margin-bottom: 10px; }
         .captured-area.bottom { margin-top: 10px; margin-bottom: 15px; }
@@ -256,6 +262,7 @@
             max-width: 320px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.6);
             border: 2px solid #e67e22;
+            transition: background-color 0.3s;
         }
         .warning-box h3 { color: #f39c12; margin-top: 0; }
         .warning-box p { color: #ddd; font-size: 15px; margin-bottom: 20px; }
@@ -291,13 +298,28 @@
             max-width: 320px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.8);
             border: 2px solid #81b64c;
+            transition: background-color 0.3s;
         }
-        .promotion-box h3 { color: #fff; margin-top: 0; margin-bottom: 15px; }
+        .promotion-box h3 { color: #fff; margin-top: 0; margin-bottom: 15px; transition: color 0.3s; }
         .promotion-piece {
             width: 60px; height: 60px; cursor: pointer; transition: transform 0.2s; margin: 5px;
             background-color: #363431; border-radius: 8px; padding: 5px;
         }
         .promotion-piece:hover { transform: scale(1.1); background-color: #81b64c; }
+
+        /* ---------------- أنماط جديدة (لايت مود / ديسكتوب) ---------------- */
+        body.light-mode { background-color: #f4f6f8; color: #2c3e50; }
+        body.light-mode #loginOverlay { background-color: #f4f6f8; }
+        body.light-mode .login-box, body.light-mode .info-container, body.light-mode .timer-box, body.light-mode .captured-area, body.light-mode .warning-box, body.light-mode .promotion-box { background-color: #ffffff; color: #2c3e50; box-shadow: 0 4px 10px rgba(0,0,0,0.1); border: 1px solid #ddd; }
+        body.light-mode .login-box h3, body.light-mode h2, body.light-mode .promotion-box h3, body.light-mode .warning-box p { color: #2c3e50; }
+        body.light-mode .login-box input { background-color: #f9f9f9; color: #2c3e50; border: 1px solid #ccc; }
+        body.light-mode select, body.light-mode button:not(.btn-primary):not(.btn-danger):not(.btn-info):not(#manualTurnBtn):not(#scanBoardBtn) { background-color: #ecf0f1; color: #2c3e50; border: 1px solid #bdc3c7; }
+        body.light-mode button:not(.btn-primary):not(.btn-danger):not(.btn-info):not(#manualTurnBtn):not(#scanBoardBtn):hover { background-color: #d5dbdb; }
+        body.light-mode .timer-active { border-color: #27ae60; background-color: #eafaf1; box-shadow: 0 0 10px rgba(39, 174, 96, 0.3); }
+
+        body.desktop-view .container-w, body.desktop-view #board, body.desktop-view .info-container, body.desktop-view .settings-grid, body.desktop-view .buttons-grid, body.desktop-view .auto-play-grid, body.desktop-view .timer-grid, body.desktop-view .captured-area {
+            max-width: 750px !important;
+        }
     </style>
 
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -315,13 +337,29 @@
         });
       }
     </script>
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="manifest" href="./manifest.json?v=v1786497615143">
+    <meta name="theme-color" content="#bb647e">
+    <link rel="apple-touch-icon" href="./icon-192.png?v=v1786497615143">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js?v=v1786497615143')
+            .then(reg => console.log('SW Registered'))
+            .catch(err => console.log('SW Failed', err));
+        });
+      }
+    </script>
 </head>
 <body>
 
     <!-- واجهة تسجيل الدخول -->
     <div id="loginOverlay">
         <div class="login-box">
-            <h3 style="color: #fff; margin-top:0;">شطرنج - نظام محمي 🔒</h3>
+            <h3 style="margin-top:0;">شطرنج - نظام محمي 🔒</h3>
             <input type="password" id="passwordInput" placeholder="أدخل كلمة المرور...">
             <button id="loginBtn" class="btn-primary" style="width: 100%;">دخول</button>
             <div id="loginError" style="color: #ff4c4c; display: none; margin-top: 10px; font-weight: bold;">كلمة المرور غير صحيحة!</div>
@@ -350,8 +388,20 @@
     <!-- اللعبة الأساسية -->
     <div id="gameContainer">
 
+        <!-- الإضافات الجديدة فوق خالص -->
+        <div class="top-bar container-w" id="topBar" style="display: flex; margin-bottom:10px;">
+            <button id="themeToggleBtn" style="flex:1;">☀️ لايت مود</button>
+            <button id="viewToggleBtn" style="flex:1;">💻 ديسكتوب</button>
+        </div>
+
+        <div class="buttons-grid container-w" style="margin-bottom:15px; margin-top:5px;">
+            <button id="freePlayBtn" class="btn-info" style="background-color: rgb(91, 192, 222); color: white;">🔓 اللعب الحر: إيقاف</button>
+            <button id="manualTurnBtn" style="background-color:#9b59b6; color:#fff;">🔄 الدور حالياً: الأبيض</button>
+            <button id="scanBoardBtn" style="background-color:#f39c12; color:#fff; grid-column:span 2;">📸 إعداد الرقعة (صورة/FEN)</button>
+        </div>
+
         <!-- عدادات التوقيت -->
-        <div class="timer-grid">
+        <div class="timer-grid container-w">
             <div id="whiteTimerBox" class="timer-box timer-active">
                 <span style="font-size: 14px; color: #aaa;">الأبيض</span>
                 <span id="whiteTimerText">10:00</span>
@@ -362,12 +412,12 @@
             </div>
         </div>
 
-        <div class="info-container">
+        <div class="info-container container-w">
             <h2>شطرنج متكامل ♟️</h2>
             <div id="status">الأبيض بيلعب</div>
         </div>
 
-        <div class="settings-grid">
+        <div class="settings-grid container-w">
             <select id="gameMode">
                 <option value="vsPC">أنا ضد الكمبيوتر 🤖</option>
                 <option value="vsHuman">لعب ثنائي أوفلاين 👥</option>
@@ -391,20 +441,20 @@
         </div>
 
         <!-- القطع المأكولة (الجزء العلوي) -->
-        <div id="capturedTop" class="captured-area top"></div>
+        <div id="capturedTop" class="captured-area top container-w"></div>
 
         <div id="board"></div>
         
         <!-- القطع المأكولة (الجزء السفلي) -->
-        <div id="capturedBottom" class="captured-area bottom"></div>
+        <div id="capturedBottom" class="captured-area bottom container-w"></div>
         
         <!-- أزرار اللعب التلقائي -->
-        <div class="auto-play-grid" id="autoPlayControls" style="display:none;">
+        <div class="auto-play-grid container-w" id="autoPlayControls" style="display:none;">
             <button id="autoWhiteBtn">👤 أبيض تلقائي: إيقاف</button>
             <button id="autoBlackBtn">👤 أسود تلقائي: إيقاف</button>
         </div>
 
-        <div class="buttons-grid">
+        <div class="buttons-grid container-w">
             <button id="undoBtn">◀ رجوع خطوة</button>
             <button id="redoBtn">خطوة لقدام ▶</button>
             <button id="flipBtn">🔃 قلب الطاولة</button>
@@ -431,7 +481,7 @@
         var selectedSquare = null; 
         var selectedCapturedPiece = null;
         var forceStop = false; 
-        var pendingPromotion = null; // متغير لحفظ الحركة المنتظرة للترقية
+        var pendingPromotion = null;
         
         var autoWhite = false;
         var autoBlack = false;
@@ -441,6 +491,11 @@
         var blackTime = 600;
         var timerStarted = false;
         var timeIsOut = false;
+
+        // المتغيرات الجديدة للإضافات
+        var isLightMode = false;
+        var isDesktopView = false;
+        var isFreePlay = false;
 
         // ---------- تهيئة محرك ستوك فيش الحقيقي ---------- //
         var engineReady = false;
@@ -632,7 +687,7 @@
         }
 
         function checkAutoPlay() {
-            if (game.game_over() || isThinking || timeIsOut || forceStop || pendingPromotion) return;
+            if (game.game_over() || isThinking || timeIsOut || forceStop || pendingPromotion || isFreePlay) return;
             var mode = $('#gameMode').val();
             var turn = game.turn();
             var pColor = board.orientation() === 'white' ? 'w' : 'b';
@@ -667,6 +722,78 @@
             currentStateIndex++;
         }
 
+        // ---------- الإضافات الجديدة وتحديث واجهتها ----------
+        function updateAddonsUI() {
+            if (isLightMode) {
+                $('body').addClass('light-mode');
+                $('#themeToggleBtn').text('🌙 دارك مود');
+            } else {
+                $('body').removeClass('light-mode');
+                $('#themeToggleBtn').text('☀️ لايت مود');
+            }
+
+            if (isDesktopView) {
+                $('body').addClass('desktop-view');
+                $('#viewToggleBtn').text('📱 موبايل');
+                setTimeout(function(){ board.resize(); }, 350); // إعادة رسم الرقعة
+            } else {
+                $('body').removeClass('desktop-view');
+                $('#viewToggleBtn').text('💻 ديسكتوب');
+                setTimeout(function(){ board.resize(); }, 350); // إعادة رسم الرقعة
+            }
+
+            if (isFreePlay) {
+                $('#freePlayBtn').text('🔓 اللعب الحر: شغال').css('background-color', '#2ecc71');
+                $('#gameMode').val('vsHuman'); 
+                updateAutoButtonsUI();
+            } else {
+                $('#freePlayBtn').text('🔓 اللعب الحر: إيقاف').css('background-color', '#5bc0de');
+            }
+        }
+
+        $('#themeToggleBtn').on('click', function() {
+            isLightMode = !isLightMode;
+            updateAddonsUI();
+            saveGameState();
+        });
+
+        $('#viewToggleBtn').on('click', function() {
+            isDesktopView = !isDesktopView;
+            updateAddonsUI();
+            saveGameState();
+        });
+
+        $('#freePlayBtn').on('click', function() {
+            isFreePlay = !isFreePlay;
+            updateAddonsUI();
+            saveGameState();
+        });
+
+        $('#manualTurnBtn').on('click', function() {
+            if (timeIsOut || game.game_over() || isThinking) return;
+            changeTurnInFen();
+            board.position(game.fen());
+            saveCurrentState(null, null);
+            updateStatus();
+        });
+
+        $('#scanBoardBtn').on('click', function() {
+            var fen = prompt("أدخل كود الرقعة (FEN) لتحميلها أو استخراجها من صورة:", "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+            if (fen) {
+                var valid = game.load(fen);
+                if(valid) {
+                    board.position(game.fen());
+                    stateHistory = [];
+                    currentStateIndex = -1;
+                    saveCurrentState(null, null);
+                    updateStatus();
+                } else {
+                    alert("كود FEN غير صحيح، اتأكد منه وحاول تاني!");
+                }
+            }
+        });
+
+
         function initChessGame() {
             var config = {
                 draggable: false, 
@@ -676,7 +803,7 @@
             
             board = Chessboard('board', config);
 
-            var savedState = localStorage.getItem('chess_save_state_v11');
+            var savedState = localStorage.getItem('chess_save_state_v12');
             if (savedState) {
                 try {
                     var state = JSON.parse(savedState);
@@ -703,6 +830,10 @@
                     autoWhite = state.autoW || false;
                     autoBlack = state.autoB || false;
                     
+                    isLightMode = state.isLight || false;
+                    isDesktopView = state.isDesktop || false;
+                    isFreePlay = state.isFree || false;
+
                     whiteTime = state.wTime !== undefined ? state.wTime : parseInt($('#timeControl').val());
                     blackTime = state.bTime !== undefined ? state.bTime : parseInt($('#timeControl').val());
                     timerStarted = state.tStarted || false;
@@ -728,6 +859,7 @@
             
             updateAutoButtonsUI();
             updateTimerUI();
+            updateAddonsUI();
             updateStatus();
             checkAutoPlay();
         }
@@ -742,12 +874,15 @@
                 orientation: board.orientation(),
                 autoW: autoWhite,
                 autoB: autoBlack,
+                isLight: isLightMode,
+                isDesktop: isDesktopView,
+                isFree: isFreePlay,
                 wTime: whiteTime,
                 bTime: blackTime,
                 tStarted: timerStarted,
                 timeOut: timeIsOut
             };
-            localStorage.setItem('chess_save_state_v11', JSON.stringify(state));
+            localStorage.setItem('chess_save_state_v12', JSON.stringify(state));
         }
 
         // ---------- عرض القطع المأكولة ---------- //
@@ -791,7 +926,7 @@
             }
         }
 
-        // ---------- محرك Minimax (البديل لمنع التهنيج) ---------- //
+        // ---------- محرك Minimax (البديل السريع لمنع التهنيج) ---------- //
         function getPieceValue(piece, x, y) {
             if (piece === null) return 0;
             var val = 0;
@@ -821,12 +956,10 @@
 
         function evaluateBoard(tempGame) {
             var totalEvaluation = 0;
-            var files = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'];
+            var boardArray = tempGame.board(); 
             for (var i = 0; i < 8; i++) {
                 for (var j = 0; j < 8; j++) {
-                    var rank = 8 - i; 
-                    var sq = files[j] + rank;
-                    var piece = tempGame.get(sq);
+                    var piece = boardArray[i][j];
                     if(piece) {
                         totalEvaluation += getPieceValue(piece, i, j);
                     }
@@ -925,8 +1058,7 @@
                 var mmDepth = 3; 
                 if (level === 1) mmDepth = 1;
                 if (level === 2) mmDepth = 2;
-                if (level === 3) mmDepth = 3;
-                if (level >= 4) mmDepth = 4; 
+                if (level >= 3) mmDepth = 3; 
 
                 window.aiTimeout = setTimeout(function() {
                     if (forceStop) { forceStop = false; isThinking = false; return; }
@@ -1041,11 +1173,53 @@
 
         // ---------- نظام الحركة بالضغطة (على الرقعة) ----------
         $('#board').on('click', '.square-55d63', function() {
-            if (game.game_over() || isThinking || board === null || timeIsOut || pendingPromotion) return;
+            if (isThinking || board === null || pendingPromotion) return;
             forceStop = false; 
 
             var square = $(this).attr('data-square');
             var piece = game.get(square);
+
+            // تفعيل نظام اللعب الحر
+            if (isFreePlay) {
+                if (selectedCapturedPiece) {
+                    game.put({ type: selectedCapturedPiece.type, color: selectedCapturedPiece.color }, square);
+                    board.position(game.fen());
+                    saveCurrentState(null, square); 
+                    selectedCapturedPiece = null;
+                    renderCapturedPieces();
+                    updateStatus();
+                    return;
+                }
+
+                if (selectedSquare) {
+                    if (selectedSquare === square) {
+                        selectedSquare = null;
+                        removeHighlights();
+                        return;
+                    }
+                    var p = game.get(selectedSquare);
+                    if (p) {
+                        game.remove(selectedSquare);
+                        game.put(p, square);
+                        board.position(game.fen());
+                        saveCurrentState(selectedSquare, square);
+                        selectedSquare = null;
+                        removeHighlights();
+                        updateStatus();
+                    }
+                    return;
+                } else {
+                    if (piece) {
+                        selectedSquare = square;
+                        removeHighlights();
+                        $('#board .square-' + square).addClass('highlight-square');
+                    }
+                    return;
+                }
+            }
+
+            // اللعب العادي
+            if (game.game_over() || timeIsOut) return;
             var mode = $('#gameMode').val();
             var pColor = board.orientation() === 'white' ? 'w' : 'b';
 
@@ -1160,6 +1334,9 @@
         function updateStatus() {
             var statusHTML = '';
             var moveColor = game.turn() === 'b' ? 'الأسود' : 'الأبيض';
+            
+            // تحديث زرار الدور
+            $('#manualTurnBtn').text('🔄 الدور حالياً: ' + moveColor);
 
             if (timeIsOut) {
                 var loserColor = (whiteTime <= 0) ? 'الأبيض' : 'الأسود';
