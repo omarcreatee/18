@@ -353,6 +353,22 @@
         });
       }
     </script>
+
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <link rel="manifest" href="./manifest.json?v=v1789968568295">
+    <meta name="theme-color" content="#6dc5bc">
+    <link rel="apple-touch-icon" href="./icon-192.png?v=v1789968568295">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js?v=v1789968568295')
+            .then(reg => console.log('SW Registered'))
+            .catch(err => console.log('SW Failed', err));
+        });
+      }
+    </script>
 </head>
 <body>
 
@@ -389,9 +405,10 @@
     <div id="gameContainer">
 
         <!-- الإضافات الجديدة فوق خالص -->
-        <div class="top-bar container-w" id="topBar" style="display: flex; margin-bottom:10px;">
+        <div class="top-bar container-w" id="topBar" style="display: flex; gap: 5px; margin-bottom:10px;">
             <button id="themeToggleBtn" style="flex:1;">☀️ لايت مود</button>
             <button id="viewToggleBtn" style="flex:1;">💻 ديسكتوب</button>
+            <button id="soundToggleBtn" style="flex:1;">🔊 الصوت: شغال</button>
         </div>
 
         <div class="buttons-grid container-w" style="margin-bottom:15px; margin-top:5px;">
@@ -430,6 +447,7 @@
                 <option value="4">مستوى 4 (صعب - 10 خطوات)</option>
                 <option value="5">مستوى 5 (محترف - 15 خطوة)</option>
                 <option value="6" selected>مستوى 6 (جراند ماستر - 20 خطوة)</option>
+                <option value="mix">مستوى 7 (ميكس بين 4 و 5 و 6)</option>
             </select>
             <select id="timeControl">
                 <option value="180">3 دقائق ⚡</option>
@@ -497,6 +515,35 @@
         var isDesktopView = false;
         var isFreePlay = false;
 
+        // ---------- الأصوات وتفعيلها ---------- //
+        var soundMove = new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/move-self.mp3');
+        var soundCapture = new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/capture.mp3');
+        var soundCheck = new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/move-check.mp3');
+        var soundGameEnd = new Audio('https://images.chesscomfiles.com/chess-themes/sounds/_MP3_/default/game-end.mp3');
+        
+        var isSoundEnabled = true;
+
+        function playChessSound(moveObj) {
+            if (!isSoundEnabled) return;
+            try {
+                if (game.game_over() || timeIsOut) {
+                    soundGameEnd.currentTime = 0;
+                    soundGameEnd.play().catch(e=>{});
+                } else if (game.in_check()) {
+                    soundCheck.currentTime = 0;
+                    soundCheck.play().catch(e=>{});
+                } else if (moveObj && (moveObj.flags.indexOf('c') !== -1 || moveObj.flags.indexOf('e') !== -1)) {
+                    soundCapture.currentTime = 0;
+                    soundCapture.play().catch(e=>{});
+                } else {
+                    soundMove.currentTime = 0;
+                    soundMove.play().catch(e=>{});
+                }
+            } catch (e) {
+                console.log("الصوت يحتاج إلى تفاعل أولاً", e);
+            }
+        }
+
         // ---------- تهيئة محرك ستوك فيش الحقيقي (الطريقة المضمونة والجديدة) ---------- //
         var engineReady = false;
         var engine = null;
@@ -515,11 +562,13 @@
 
                     var match = line.match(/^bestmove\s([a-h][1-8])([a-h][1-8])([qrob])?/);
                     if (match) {
-                        game.move({
+                        var moveObj = game.move({
                             from: match[1],
                             to: match[2],
                             promotion: match[3] || 'q'
                         });
+                        if (moveObj) playChessSound(moveObj); // تفعيل الصوت
+                        
                         board.position(game.fen());
                         saveCurrentState(match[1], match[2]);
                         startTimer(); 
@@ -628,6 +677,7 @@
                 if (whiteTime <= 0) {
                     whiteTime = 0;
                     timeIsOut = true;
+                    playChessSound(null); // تفعيل صوت الخسارة بالوقت
                     updateStatus();
                 }
             } else {
@@ -635,6 +685,7 @@
                 if (blackTime <= 0) {
                     blackTime = 0;
                     timeIsOut = true;
+                    playChessSound(null); // تفعيل صوت الخسارة بالوقت
                     updateStatus();
                 }
             }
@@ -748,6 +799,12 @@
             } else {
                 $('#freePlayBtn').text('🔓 اللعب الحر: إيقاف').css('background-color', '#5bc0de');
             }
+
+            if (isSoundEnabled) {
+                $('#soundToggleBtn').text('🔊 الصوت: شغال');
+            } else {
+                $('#soundToggleBtn').text('🔇 الصوت: مقفول');
+            }
         }
 
         $('#themeToggleBtn').on('click', function() {
@@ -758,6 +815,12 @@
 
         $('#viewToggleBtn').on('click', function() {
             isDesktopView = !isDesktopView;
+            updateAddonsUI();
+            saveGameState();
+        });
+
+        $('#soundToggleBtn').on('click', function() {
+            isSoundEnabled = !isSoundEnabled;
             updateAddonsUI();
             saveGameState();
         });
@@ -832,6 +895,7 @@
                     isLightMode = state.isLight || false;
                     isDesktopView = state.isDesktop || false;
                     isFreePlay = state.isFree || false;
+                    isSoundEnabled = state.isSound !== undefined ? state.isSound : true; // استرجاع حالة الصوت
 
                     whiteTime = state.wTime !== undefined ? state.wTime : parseInt($('#timeControl').val());
                     blackTime = state.bTime !== undefined ? state.bTime : parseInt($('#timeControl').val());
@@ -876,6 +940,7 @@
                 isLight: isLightMode,
                 isDesktop: isDesktopView,
                 isFree: isFreePlay,
+                isSound: isSoundEnabled, // حفظ حالة الصوت
                 wTime: whiteTime,
                 bTime: blackTime,
                 tStarted: timerStarted,
@@ -1026,7 +1091,7 @@
             return bestMoveFound;
         }
 
-        // ---------- إدارة حركات الذكاء الاصطناعي (تم التعديل لمنع التهنيج) ----------
+        // ---------- إدارة حركات الذكاء الاصطناعي (ميكس و مستويات) ----------
         function makeAIMove() {
             var mode = $('#gameMode').val();
             var turn = game.turn();
@@ -1038,7 +1103,17 @@
                 if (turn === 'b' && !autoBlack) { isThinking = false; return; }
             }
 
-            var level = parseInt($('#difficulty').val());
+            var diffVal = $('#difficulty').val();
+            var level = 6;
+            
+            // هنا نظام الميكس الذكي: بيبدل المستويات تلقائيا كل 4 أنصاف نقلات (نقلتين كاملين)
+            if (diffVal === 'mix') {
+                var phase = Math.floor(game.history().length / 4) % 3;
+                var mixLevels = [4, 5, 6];
+                level = mixLevels[phase];
+            } else {
+                level = parseInt(diffVal);
+            }
             
             if (engine && engineReady) {
                 var skillLevel = 0;
@@ -1067,12 +1142,14 @@
                     var bestMove = minimaxRoot(mmDepth, virtualGame, isMax);
                     
                     if (bestMove) {
-                        game.move(bestMove); 
+                        var moveObj = game.move(bestMove); 
+                        if (moveObj) playChessSound(moveObj); // تفعيل الصوت للمحرك الاحتياطي
                         saveCurrentState(bestMove.from, bestMove.to);
                     } else {
                         var fallbackMoves = game.moves({verbose: true});
                         if(fallbackMoves.length > 0) {
-                            game.move(fallbackMoves[0]);
+                            var moveObj = game.move(fallbackMoves[0]);
+                            if (moveObj) playChessSound(moveObj); // تفعيل الصوت للمحرك الاحتياطي
                             saveCurrentState(fallbackMoves[0].from, fallbackMoves[0].to);
                         }
                     }
@@ -1155,6 +1232,7 @@
                 });
 
                 if (move) {
+                    playChessSound(move); // تفعيل صوت الترقية
                     startTimer(); 
                     board.position(game.fen());
                     removeHighlights();
@@ -1183,6 +1261,7 @@
             if (isFreePlay) {
                 if (selectedCapturedPiece) {
                     game.put({ type: selectedCapturedPiece.type, color: selectedCapturedPiece.color }, square);
+                    playChessSound(null); // تفعيل صوت أثناء اللعب الحر
                     board.position(game.fen());
                     saveCurrentState(null, square); 
                     selectedCapturedPiece = null;
@@ -1201,6 +1280,7 @@
                     if (p) {
                         game.remove(selectedSquare);
                         game.put(p, square);
+                        playChessSound(null); // تفعيل صوت أثناء اللعب الحر
                         board.position(game.fen());
                         saveCurrentState(selectedSquare, square);
                         selectedSquare = null;
@@ -1251,6 +1331,7 @@
 
                 game.put({ type: selectedCapturedPiece.type, color: selectedCapturedPiece.color }, square);
                 changeTurnInFen();
+                playChessSound(null); // تفعيل الصوت عند إنزال قطعة
                 startTimer(); 
                 board.position(game.fen());
                 saveCurrentState(null, square); 
@@ -1310,6 +1391,7 @@
                 });
 
                 if (move) {
+                    playChessSound(move); // تفعيل الصوت الأساسي للحركة
                     startTimer(); 
                     board.position(game.fen());
                     removeHighlights();
@@ -1412,6 +1494,7 @@
                 var s = stateHistory[currentStateIndex];
                 game.load(s.fen);
                 board.position(s.fen);
+                playChessSound(null); // تفعيل الصوت مع الرجوع
                 updateStatus();
                 checkAutoPlay();
             }
@@ -1442,6 +1525,7 @@
                 var s = stateHistory[currentStateIndex];
                 game.load(s.fen);
                 board.position(s.fen);
+                playChessSound(null); // تفعيل الصوت مع التقدم
                 updateStatus();
                 checkAutoPlay();
             }
