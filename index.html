@@ -357,13 +357,13 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <link rel="manifest" href="./manifest.json?v=v1789968568295">
-    <meta name="theme-color" content="#6dc5bc">
-    <link rel="apple-touch-icon" href="./icon-192.png?v=v1789968568295">
+    <link rel="manifest" href="./manifest.json?v=v1789969464217">
+    <meta name="theme-color" content="#be74b4">
+    <link rel="apple-touch-icon" href="./icon-192.png?v=v1789969464217">
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js?v=v1789968568295')
+          navigator.serviceWorker.register('./sw.js?v=v1789969464217')
             .then(reg => console.log('SW Registered'))
             .catch(err => console.log('SW Failed', err));
         });
@@ -452,9 +452,9 @@
             <select id="timeControl">
                 <option value="180">3 دقائق ⚡</option>
                 <option value="300">5 دقائق ⏱️</option>
-                <option value="600" selected>10 دقائق 🕰️</option>
+                <option value="600">10 دقائق 🕰️</option>
                 <option value="1800">30 دقيقة 🐢</option>
-                <option value="0">بدون وقت ⏳</option>
+                <option value="0" selected>بدون وقت ⏳</option>
             </select>
         </div>
 
@@ -505,8 +505,8 @@
         var autoBlack = false;
 
         var timerInterval = null;
-        var whiteTime = 600;
-        var blackTime = 600;
+        var whiteTime = 0;
+        var blackTime = 0;
         var timerStarted = false;
         var timeIsOut = false;
 
@@ -887,7 +887,9 @@
                     $('#switchColorBtn').text(board.orientation() === 'white' ? '🔄 العب بالأسود' : '🔄 العب بالأبيض');
                     $('#gameMode').val(state.mode || 'vsPC');
                     $('#difficulty').val(state.diff || '6');
-                    $('#timeControl').val(state.timeCtrl || "600");
+                    
+                    // هنا ظبطنا إن بدون وقت هي الافتراضية
+                    $('#timeControl').val(state.timeCtrl || "0");
                     
                     autoWhite = state.autoW || false;
                     autoBlack = state.autoB || false;
